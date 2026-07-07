@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
-export function listEvents() {
+export function listEvents(branchId: string) {
   return prisma.event.findMany({
-    where: { type: { in: ["REGULAR_MEETING", "FORUM", "GENERAL_MEETING"] } },
+    where: { branchId, type: { in: ["REGULAR_MEETING", "FORUM", "GENERAL_MEETING"] } },
     orderBy: { startAt: "desc" },
     include: {
       team: true,
@@ -12,9 +12,9 @@ export function listEvents() {
   });
 }
 
-export function getEventDetail(id: string) {
-  return prisma.event.findUnique({
-    where: { id },
+export function getEventDetail(id: string, branchId: string) {
+  return prisma.event.findFirst({
+    where: { id, branchId },
     include: {
       team: true,
       chairMember: true,

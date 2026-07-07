@@ -50,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.uid = dbUser.id;
           token.role = dbUser.role;
           token.memberId = dbUser.memberId ?? undefined;
+          token.branchId = dbUser.branchId;
         }
       }
       return token;
@@ -57,8 +58,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.uid as string;
-        session.user.role = (token.role as Role) ?? "MEMBER";
+        session.user.role = (token.role as Role) ?? "BRANCH_MEMBER";
         session.user.memberId = token.memberId as string | undefined;
+        session.user.branchId = (token.branchId as string | null) ?? null;
       }
       return session;
     },

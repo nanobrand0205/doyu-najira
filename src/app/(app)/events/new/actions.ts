@@ -1,14 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEditOperations } from "@/lib/permissions";
+import { requireBranchSession, assertBranchOwnership, BranchAccessError } from "@/lib/data/guard";
 
 export async function createEvent(formData: FormData) {
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
-    throw new Error("この操作を行う権限がありません。");
+  const { session, branchId } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
+    throw new BranchAccessError("この操作を行う権限がありません。");
   }
 
   const title = String(formData.get("title") ?? "").trim();
@@ -24,11 +24,17 @@ export async function createEvent(formData: FormData) {
     throw new Error("例会名と開催日は必須です。");
   }
 
+  if (teamId) {
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    assertBranchOwnership(team, branchId);
+  }
+
   const startAt = new Date(`${dateStr}T${startTime}:00`);
   const endAt = new Date(`${dateStr}T${endTime}:00`);
 
   const event = await prisma.event.create({
     data: {
+      branchId,
       title,
       type: "REGULAR_MEETING",
       year: startAt.getFullYear(),
@@ -45,6 +51,7 @@ export async function createEvent(formData: FormData) {
 
   await prisma.plan.create({
     data: {
+      branchId,
       eventId: event.id,
       title: `${title} 企画書 v1`,
       status: "DRAFT",

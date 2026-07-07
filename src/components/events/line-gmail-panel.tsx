@@ -17,6 +17,7 @@ import {
   gmailThanksTemplate,
 } from "@/lib/templates";
 import { markLinePostPosted, saveLinePostDraft } from "@/app/(app)/events/[id]/actions";
+import { useBranchLabels } from "@/components/providers/branch-settings-provider";
 import type { Event, LinePost } from "@prisma/client";
 
 export function LineGmailPanel({
@@ -28,11 +29,12 @@ export function LineGmailPanel({
   linePosts: LinePost[];
   editable: boolean;
 }) {
-  const [invitation, setInvitation] = useState(lineInvitationTemplate(event));
+  const labels = useBranchLabels();
+  const [invitation, setInvitation] = useState(lineInvitationTemplate(event, labels.branchName));
   const [reminder, setReminder] = useState(lineReminderTemplate(event));
-  const [thanks, setThanks] = useState(lineThanksTemplate(event));
-  const gmailInvite = gmailInvitationTemplate(event, "○○");
-  const gmailThanks = gmailThanksTemplate(event, "○○");
+  const [thanks, setThanks] = useState(lineThanksTemplate(event, labels.branchName));
+  const gmailInvite = gmailInvitationTemplate(event, "○○", labels.signatureName);
+  const gmailThanks = gmailThanksTemplate(event, "○○", labels.signatureName);
   const [isPending, startTransition] = useTransition();
 
   return (

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ExternalLink, MapPin, Users, Mic2, FolderOpen } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { requireBranchSession } from "@/lib/data/guard";
 import { getEventDetail } from "@/lib/data/events";
 import { canEditOperations } from "@/lib/permissions";
 import { PageHeader } from "@/components/layout/page-header";
@@ -21,10 +21,11 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [session, event] = await Promise.all([auth(), getEventDetail(id)]);
+  const { session, branchId } = await requireBranchSession();
+  const event = await getEventDetail(id, branchId);
   if (!event) notFound();
 
-  const editable = canEditOperations(session?.user.role);
+  const editable = canEditOperations(session.user.role);
 
   return (
     <div>

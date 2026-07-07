@@ -1,17 +1,19 @@
 import { google } from "googleapis";
 import { Readable } from "node:stream";
-import { getGoogleAuthForUser } from "./client";
+import { prisma } from "@/lib/prisma";
+import { getGoogleAuthForBranch } from "./client";
 
-const ROOT_FOLDER_NAME = "三条支部共有ドライブ";
-
-// なじらボード の Drive フォルダ構成 (仕様書 6.5) を作成する。
-// 実際のフォルダIDはSettings画面でDBに保存し、資料アップロード時の保存先に使う想定。
-export async function ensureFolderStructure(userId: string, fiscalYear: number) {
-  const auth = await getGoogleAuthForUser(userId);
-  if (!auth) throw new Error("Googleアカウントが連携されていません。");
+// Doyu Board の Drive フォルダ構成 (仕様書 6.5) を支部の共有ドライブに作成する。
+// フォルダIDはGoogleIntegrationに保存し、資料アップロード時の保存先に使う想定。
+export async function ensureFolderStructure(branchId: string, fiscalYear: number) {
+  const auth = await getGoogleAuthForBranch(branchId);
+  if (!auth) throw new Error("この支部はGoogleと連携されていません。");
   const drive = google.drive({ version: "v3", auth });
 
-  const rootId = await findOrCreateFolder(drive, ROOT_FOLDER_NAME, undefined);
+  const settings = await prisma.branchSettings.findUnique({ where: { branchId } });
+  const rootFolderName = `${settings?.branchName ?? "支部"}共有ドライブ`;
+
+  const rootId = await findOrCreateFolder(drive, rootFolderName, undefined);
   const yearId = await findOrCreateFolder(drive, `${fiscalYear}年度`, rootId);
 
   const subfolders = [
@@ -29,6 +31,11 @@ export async function ensureFolderStructure(userId: string, fiscalYear: number) 
   for (const name of subfolders) {
     ids[name] = await findOrCreateFolder(drive, name, yearId);
   }
+
+  await prisma.googleIntegration.update({
+    where: { branchId },
+    data: { driveRootFolderId: rootId },
+  });
 
   return { rootId, yearId, subfolders: ids };
 }
@@ -64,11 +71,11 @@ async function findOrCreateFolder(
 }
 
 export async function uploadFileToDrive(
-  userId: string,
+  branchId: string,
   params: { name: string; mimeType: string; folderId?: string; data: Buffer }
 ) {
-  const auth = await getGoogleAuthForUser(userId);
-  if (!auth) throw new Error("Googleアカウントが連携されていません。");
+  const auth = await getGoogleAuthForBranch(branchId);
+  if (!auth) throw new Error("この支部はGoogleと連携されていません。");
   const drive = google.drive({ version: "v3", auth });
 
   const res = await drive.files.create({

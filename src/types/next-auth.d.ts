@@ -7,6 +7,8 @@ declare module "next-auth" {
       id: string;
       role: Role;
       memberId?: string;
+      // null only for SUPER_ADMIN, who is not scoped to a single branch
+      branchId: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -16,5 +18,6 @@ declare module "next-auth/jwt" {
     uid?: string;
     role?: Role;
     memberId?: string;
+    branchId?: string | null;
   }
 }

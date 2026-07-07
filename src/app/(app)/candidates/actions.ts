@@ -1,20 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEditOperations } from "@/lib/permissions";
+import { requireBranchSession, assertBranchOwnership, BranchAccessError } from "@/lib/data/guard";
 import type { CandidateStatus } from "@prisma/client";
 
 async function assertCanEdit() {
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
-    throw new Error("この操作を行う権限がありません。");
+  const { session, branchId } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
+    throw new BranchAccessError("この操作を行う権限がありません。");
   }
+  return branchId;
 }
 
 export async function updateCandidateStatus(candidateId: string, status: CandidateStatus) {
-  await assertCanEdit();
+  const branchId = await assertCanEdit();
+  const candidate = await prisma.candidate.findUnique({ where: { id: candidateId } });
+  assertBranchOwnership(candidate, branchId);
   await prisma.candidate.update({
     where: { id: candidateId },
     data: { status, lastContactDate: new Date() },
@@ -24,7 +27,9 @@ export async function updateCandidateStatus(candidateId: string, status: Candida
 }
 
 export async function updateNextActionDate(candidateId: string, date: string) {
-  await assertCanEdit();
+  const branchId = await assertCanEdit();
+  const candidate = await prisma.candidate.findUnique({ where: { id: candidateId } });
+  assertBranchOwnership(candidate, branchId);
   await prisma.candidate.update({
     where: { id: candidateId },
     data: { nextActionDate: date ? new Date(date) : null },
@@ -33,21 +38,27 @@ export async function updateNextActionDate(candidateId: string, date: string) {
 }
 
 export async function updateCandidateNotes(candidateId: string, notes: string) {
-  await assertCanEdit();
+  const branchId = await assertCanEdit();
+  const candidate = await prisma.candidate.findUnique({ where: { id: candidateId } });
+  assertBranchOwnership(candidate, branchId);
   await prisma.candidate.update({ where: { id: candidateId }, data: { notes } });
   revalidatePath(`/candidates/${candidateId}`);
 }
 
 export async function saveEmailDraft(candidateId: string, subject: string, body: string) {
-  await assertCanEdit();
+  const branchId = await assertCanEdit();
+  const candidate = await prisma.candidate.findUnique({ where: { id: candidateId } });
+  assertBranchOwnership(candidate, branchId);
   await prisma.emailLog.create({
-    data: { candidateId, subject, body, status: "DRAFT" },
+    data: { branchId, candidateId, subject, body, status: "DRAFT" },
   });
   revalidatePath(`/candidates/${candidateId}`);
 }
 
 export async function markEmailSent(emailLogId: string, candidateId: string) {
-  await assertCanEdit();
+  const branchId = await assertCanEdit();
+  const emailLog = await prisma.emailLog.findUnique({ where: { id: emailLogId } });
+  assertBranchOwnership(emailLog, branchId);
   await prisma.emailLog.update({
     where: { id: emailLogId },
     data: { status: "SENT", sentAt: new Date() },
@@ -60,12 +71,13 @@ export async function markEmailSent(emailLogId: string, candidateId: string) {
 }
 
 export async function createCandidate(formData: FormData) {
-  await assertCanEdit();
+  const branchId = await assertCanEdit();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("氏名は必須です。");
 
   await prisma.candidate.create({
     data: {
+      branchId,
       name,
       companyName: String(formData.get("companyName") ?? "") || null,
       position: String(formData.get("position") ?? "") || null,

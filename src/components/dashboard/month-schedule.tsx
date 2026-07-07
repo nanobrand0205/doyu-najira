@@ -11,11 +11,17 @@ function linkFor(event: Event) {
   return event.type === "NAJIRA" ? `/najira/${event.id}` : `/events/${event.id}`;
 }
 
-export function MonthSchedule({ events }: { events: EventWithTeam[] }) {
+export function MonthSchedule({
+  events,
+  branchName,
+}: {
+  events: EventWithTeam[];
+  branchName: string;
+}) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>今月の三条支部予定</CardTitle>
+        <CardTitle>今月の{branchName}予定</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {events.length === 0 ? (

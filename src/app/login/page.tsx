@@ -11,7 +11,7 @@ export default async function LoginPage() {
   const demoUsers = isDemoMode
     ? await prisma.user.findMany({
         orderBy: { createdAt: "asc" },
-        include: { member: true },
+        include: { member: true, branch: { include: { settings: true } } },
       })
     : [];
 
@@ -28,12 +28,12 @@ export default async function LoginPage() {
       <div className="relative z-10 w-full max-w-sm">
         <div className="mb-10 flex flex-col items-center gap-3 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)] text-xl font-bold text-[var(--primary-foreground)] shadow-lg">
-            な
+            D
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">なじらボード</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Doyu Board</h1>
             <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-              三条支部の、今どうなってるかが見えるボード。
+              支部の、今どうなってるかが見えるボード。
             </p>
           </div>
         </div>
@@ -46,7 +46,7 @@ export default async function LoginPage() {
             </Button>
           </form>
           <p className="mt-3 text-center text-[12px] text-[var(--muted-foreground)]">
-            三条支部の同友会Googleアカウントでログインしてください
+            所属する支部の同友会Googleアカウントでログインしてください
           </p>
         </div>
 
@@ -72,9 +72,13 @@ export default async function LoginPage() {
                     <span className="flex-1">
                       <span className="block text-[13px] font-medium">{u.name}</span>
                       <span className="block text-[11px] text-[var(--muted-foreground)]">
-                        {u.member?.companyName}
+                        {u.member?.companyName ??
+                          (u.branch ? undefined : "運営 (全支部管理)")}
                       </span>
                     </span>
+                    {u.branch?.settings && (
+                      <Badge variant="outline">{u.branch.settings.branchName}</Badge>
+                    )}
                     <Badge variant="neutral">{roleLabel(u.role)}</Badge>
                   </button>
                 </form>

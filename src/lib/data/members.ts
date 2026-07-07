@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
-export async function listMembers() {
+export async function listMembers(branchId: string) {
   return prisma.member.findMany({
-    where: { isActive: true },
+    where: { branchId, isActive: true },
     orderBy: { name: "asc" },
     include: {
       teamMemberships: {
@@ -17,12 +17,15 @@ export async function listMembers() {
   });
 }
 
-export async function getMemberDetail(id: string) {
-  return prisma.member.findUnique({
-    where: { id },
+export async function getMemberDetail(id: string, branchId: string) {
+  return prisma.member.findFirst({
+    where: { id, branchId },
     include: {
       teamMemberships: { include: { team: { include: { fiscalYear: true } } } },
-      orgPositions: { include: { fiscalYear: true }, orderBy: [{ fiscalYear: { year: "desc" } }, { sortOrder: "asc" }] },
+      orgPositions: {
+        include: { fiscalYear: true },
+        orderBy: [{ fiscalYear: { year: "desc" } }, { sortOrder: "asc" }],
+      },
     },
   });
 }

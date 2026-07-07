@@ -1,24 +1,24 @@
 import { prisma } from "@/lib/prisma";
 
-export function listFiscalYears() {
-  return prisma.fiscalYear.findMany({ orderBy: { year: "desc" } });
+export function listFiscalYears(branchId: string) {
+  return prisma.fiscalYear.findMany({ where: { branchId }, orderBy: { year: "desc" } });
 }
 
-export async function getOrgChart(year?: number) {
+export async function getOrgChart(branchId: string, year?: number) {
   const fiscalYear = year
-    ? await prisma.fiscalYear.findUnique({ where: { year } })
-    : await prisma.fiscalYear.findFirst({ where: { isCurrent: true } });
+    ? await prisma.fiscalYear.findUnique({ where: { branchId_year: { branchId, year } } })
+    : await prisma.fiscalYear.findFirst({ where: { branchId, isCurrent: true } });
 
   if (!fiscalYear) return null;
 
   const [positions, teams] = await Promise.all([
     prisma.orgPosition.findMany({
-      where: { fiscalYearId: fiscalYear.id },
+      where: { branchId, fiscalYearId: fiscalYear.id },
       include: { member: true },
       orderBy: { sortOrder: "asc" },
     }),
     prisma.team.findMany({
-      where: { fiscalYearId: fiscalYear.id },
+      where: { branchId, fiscalYearId: fiscalYear.id },
       include: { memberships: { include: { member: true } } },
     }),
   ]);

@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('MEMBER', 'SECRETARY', 'MANAGER', 'ADMIN');
+CREATE TYPE "GoogleIntegrationStatus" AS ENUM ('NOT_CONNECTED', 'CONNECTED', 'ERROR');
 
 -- CreateEnum
-CREATE TYPE "TeamName" AS ENUM ('MANABI', 'KOURYU', 'FRIENDSHIP', 'OTHER');
+CREATE TYPE "Role" AS ENUM ('VIEWER', 'BRANCH_MEMBER', 'BRANCH_MANAGER', 'BRANCH_ADMIN', 'SUPER_ADMIN');
 
 -- CreateEnum
 CREATE TYPE "EventType" AS ENUM ('REGULAR_MEETING', 'NAJIRA', 'TEAM_MEETING', 'FORUM', 'GENERAL_MEETING', 'OTHER');
@@ -32,13 +32,67 @@ CREATE TYPE "EmailStatus" AS ENUM ('DRAFT', 'SENT', 'FAILED');
 CREATE TYPE "LinePostStatus" AS ENUM ('DRAFT', 'SCHEDULED', 'POSTED');
 
 -- CreateTable
+CREATE TABLE "Branch" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Branch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BranchSettings" (
+    "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
+    "branchName" TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "officerMeetingLabel" TEXT NOT NULL DEFAULT '幹事会',
+    "regularMeetingLabel" TEXT NOT NULL DEFAULT '例会',
+    "teamLabel" TEXT NOT NULL DEFAULT 'チーム',
+    "edoyuBaseUrl" TEXT,
+    "themePrimaryColor" TEXT,
+    "themeAccentColor" TEXT,
+    "logoUrl" TEXT,
+    "signatureName" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "BranchSettings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GoogleIntegration" (
+    "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
+    "status" "GoogleIntegrationStatus" NOT NULL DEFAULT 'NOT_CONNECTED',
+    "connectedEmail" TEXT,
+    "accessToken" TEXT,
+    "refreshToken" TEXT,
+    "expiryDate" TIMESTAMP(3),
+    "scope" TEXT,
+    "driveRootFolderId" TEXT,
+    "calendarOfficialId" TEXT,
+    "calendarPrepId" TEXT,
+    "calendarTeamMtgId" TEXT,
+    "calendarCandidateId" TEXT,
+    "gmailSenderEmail" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GoogleIntegration_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "name" TEXT,
     "email" TEXT,
     "emailVerified" TIMESTAMP(3),
     "image" TEXT,
-    "role" "Role" NOT NULL DEFAULT 'MEMBER',
+    "role" "Role" NOT NULL DEFAULT 'BRANCH_MEMBER',
+    "branchId" TEXT,
     "memberId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -84,6 +138,7 @@ CREATE TABLE "VerificationToken" (
 -- CreateTable
 CREATE TABLE "FiscalYear" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "year" INTEGER NOT NULL,
     "isCurrent" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -95,6 +150,7 @@ CREATE TABLE "FiscalYear" (
 -- CreateTable
 CREATE TABLE "Member" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "photoUrl" TEXT,
     "companyName" TEXT NOT NULL,
@@ -126,8 +182,8 @@ CREATE TABLE "Member" (
 -- CreateTable
 CREATE TABLE "Team" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "fiscalYearId" TEXT NOT NULL,
-    "name" "TeamName" NOT NULL,
     "displayName" TEXT NOT NULL,
     "description" TEXT,
     "najiraTheme" TEXT,
@@ -150,6 +206,7 @@ CREATE TABLE "TeamMembership" (
 -- CreateTable
 CREATE TABLE "OrgPosition" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "fiscalYearId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "category" TEXT NOT NULL,
@@ -163,6 +220,7 @@ CREATE TABLE "OrgPosition" (
 -- CreateTable
 CREATE TABLE "Event" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "year" INTEGER NOT NULL,
     "month" INTEGER NOT NULL,
     "title" TEXT NOT NULL,
@@ -195,6 +253,7 @@ CREATE TABLE "Event" (
 -- CreateTable
 CREATE TABLE "NajiraDetail" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
     "decisions" TEXT,
     "continuedTopics" TEXT,
@@ -209,6 +268,7 @@ CREATE TABLE "NajiraDetail" (
 -- CreateTable
 CREATE TABLE "NajiraAgendaItem" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "detail" TEXT,
@@ -221,6 +281,7 @@ CREATE TABLE "NajiraAgendaItem" (
 -- CreateTable
 CREATE TABLE "Plan" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "status" "PlanStatus" NOT NULL DEFAULT 'DRAFT',
@@ -241,6 +302,7 @@ CREATE TABLE "Plan" (
 -- CreateTable
 CREATE TABLE "FileAsset" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "type" "FileType" NOT NULL,
     "relatedEventId" TEXT,
@@ -257,6 +319,7 @@ CREATE TABLE "FileAsset" (
 -- CreateTable
 CREATE TABLE "Task" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT,
     "relatedEventId" TEXT,
@@ -274,6 +337,7 @@ CREATE TABLE "Task" (
 -- CreateTable
 CREATE TABLE "Candidate" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "companyName" TEXT,
     "position" TEXT,
@@ -296,6 +360,7 @@ CREATE TABLE "Candidate" (
 -- CreateTable
 CREATE TABLE "EmailLog" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "candidateId" TEXT NOT NULL,
     "subject" TEXT NOT NULL,
     "body" TEXT NOT NULL,
@@ -311,6 +376,7 @@ CREATE TABLE "EmailLog" (
 -- CreateTable
 CREATE TABLE "LinePost" (
     "id" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "relatedEventId" TEXT,
     "title" TEXT NOT NULL,
     "body" TEXT NOT NULL,
@@ -323,6 +389,15 @@ CREATE TABLE "LinePost" (
 
     CONSTRAINT "LinePost_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Branch_slug_key" ON "Branch"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BranchSettings_branchId_key" ON "BranchSettings"("branchId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GoogleIntegration_branchId_key" ON "GoogleIntegration"("branchId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
@@ -343,31 +418,64 @@ CREATE UNIQUE INDEX "VerificationToken_token_key" ON "VerificationToken"("token"
 CREATE UNIQUE INDEX "VerificationToken_identifier_token_key" ON "VerificationToken"("identifier", "token");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "FiscalYear_year_key" ON "FiscalYear"("year");
+CREATE INDEX "FiscalYear_branchId_idx" ON "FiscalYear"("branchId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Team_fiscalYearId_name_key" ON "Team"("fiscalYearId", "name");
+CREATE UNIQUE INDEX "FiscalYear_branchId_year_key" ON "FiscalYear"("branchId", "year");
+
+-- CreateIndex
+CREATE INDEX "Member_branchId_idx" ON "Member"("branchId");
+
+-- CreateIndex
+CREATE INDEX "Team_branchId_idx" ON "Team"("branchId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Team_fiscalYearId_displayName_key" ON "Team"("fiscalYearId", "displayName");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TeamMembership_teamId_memberId_key" ON "TeamMembership"("teamId", "memberId");
 
 -- CreateIndex
-CREATE INDEX "Event_year_month_idx" ON "Event"("year", "month");
+CREATE INDEX "OrgPosition_branchId_idx" ON "OrgPosition"("branchId");
+
+-- CreateIndex
+CREATE INDEX "Event_branchId_year_month_idx" ON "Event"("branchId", "year", "month");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NajiraDetail_eventId_key" ON "NajiraDetail"("eventId");
 
 -- CreateIndex
-CREATE INDEX "Plan_eventId_idx" ON "Plan"("eventId");
+CREATE INDEX "NajiraDetail_branchId_idx" ON "NajiraDetail"("branchId");
 
 -- CreateIndex
-CREATE INDEX "FileAsset_type_idx" ON "FileAsset"("type");
+CREATE INDEX "NajiraAgendaItem_branchId_idx" ON "NajiraAgendaItem"("branchId");
 
 -- CreateIndex
-CREATE INDEX "Task_status_dueDate_idx" ON "Task"("status", "dueDate");
+CREATE INDEX "Plan_branchId_eventId_idx" ON "Plan"("branchId", "eventId");
 
 -- CreateIndex
-CREATE INDEX "Candidate_status_idx" ON "Candidate"("status");
+CREATE INDEX "FileAsset_branchId_type_idx" ON "FileAsset"("branchId", "type");
+
+-- CreateIndex
+CREATE INDEX "Task_branchId_status_dueDate_idx" ON "Task"("branchId", "status", "dueDate");
+
+-- CreateIndex
+CREATE INDEX "Candidate_branchId_status_idx" ON "Candidate"("branchId", "status");
+
+-- CreateIndex
+CREATE INDEX "EmailLog_branchId_idx" ON "EmailLog"("branchId");
+
+-- CreateIndex
+CREATE INDEX "LinePost_branchId_idx" ON "LinePost"("branchId");
+
+-- AddForeignKey
+ALTER TABLE "BranchSettings" ADD CONSTRAINT "BranchSettings_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoogleIntegration" ADD CONSTRAINT "GoogleIntegration_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -379,6 +487,15 @@ ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId"
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "FiscalYear" ADD CONSTRAINT "FiscalYear_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Member" ADD CONSTRAINT "Member_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Team" ADD CONSTRAINT "Team_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Team" ADD CONSTRAINT "Team_fiscalYearId_fkey" FOREIGN KEY ("fiscalYearId") REFERENCES "FiscalYear"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -388,10 +505,16 @@ ALTER TABLE "TeamMembership" ADD CONSTRAINT "TeamMembership_teamId_fkey" FOREIGN
 ALTER TABLE "TeamMembership" ADD CONSTRAINT "TeamMembership_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "OrgPosition" ADD CONSTRAINT "OrgPosition_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "OrgPosition" ADD CONSTRAINT "OrgPosition_fiscalYearId_fkey" FOREIGN KEY ("fiscalYearId") REFERENCES "FiscalYear"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrgPosition" ADD CONSTRAINT "OrgPosition_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "Member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Event" ADD CONSTRAINT "Event_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Event" ADD CONSTRAINT "Event_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -403,16 +526,31 @@ ALTER TABLE "Event" ADD CONSTRAINT "Event_chairMemberId_fkey" FOREIGN KEY ("chai
 ALTER TABLE "Event" ADD CONSTRAINT "Event_roomLeaderMemberId_fkey" FOREIGN KEY ("roomLeaderMemberId") REFERENCES "Member"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "NajiraDetail" ADD CONSTRAINT "NajiraDetail_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NajiraAgendaItem" ADD CONSTRAINT "NajiraAgendaItem_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "NajiraAgendaItem" ADD CONSTRAINT "NajiraAgendaItem_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Plan" ADD CONSTRAINT "Plan_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Plan" ADD CONSTRAINT "Plan_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FileAsset" ADD CONSTRAINT "FileAsset_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "FileAsset" ADD CONSTRAINT "FileAsset_relatedEventId_fkey" FOREIGN KEY ("relatedEventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "FileAsset" ADD CONSTRAINT "FileAsset_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "Member"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Task" ADD CONSTRAINT "Task_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Task" ADD CONSTRAINT "Task_relatedEventId_fkey" FOREIGN KEY ("relatedEventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -424,13 +562,22 @@ ALTER TABLE "Task" ADD CONSTRAINT "Task_relatedCandidateId_fkey" FOREIGN KEY ("r
 ALTER TABLE "Task" ADD CONSTRAINT "Task_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "Member"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_introducedById_fkey" FOREIGN KEY ("introducedById") REFERENCES "Member"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "Member"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LinePost" ADD CONSTRAINT "LinePost_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LinePost" ADD CONSTRAINT "LinePost_relatedEventId_fkey" FOREIGN KEY ("relatedEventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;

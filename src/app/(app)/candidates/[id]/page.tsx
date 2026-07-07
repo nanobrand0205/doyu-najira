@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { Mail, Phone, UserRound } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { requireBranchSession } from "@/lib/data/guard";
 import { prisma } from "@/lib/prisma";
 import { getCandidateDetail } from "@/lib/data/candidates";
 import { canEditOperations } from "@/lib/permissions";
@@ -17,20 +17,20 @@ export default async function CandidateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
+  const { session, branchId } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
     redirect("/");
   }
 
-  const candidate = await getCandidateDetail(id);
+  const candidate = await getCandidateDetail(id, branchId);
   if (!candidate) notFound();
 
   const nextEvent = await prisma.event.findFirst({
-    where: { type: "REGULAR_MEETING", startAt: { gte: new Date() } },
+    where: { branchId, type: "REGULAR_MEETING", startAt: { gte: new Date() } },
     orderBy: { startAt: "asc" },
   });
 
-  const editable = canEditOperations(session?.user.role);
+  const editable = canEditOperations(session.user.role);
 
   return (
     <div>

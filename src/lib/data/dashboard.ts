@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { addDays } from "date-fns";
 
-export async function getDashboardData() {
+export async function getDashboardData(branchId: string) {
   const now = new Date();
   const weekAhead = addDays(now, 7);
 
@@ -20,17 +20,18 @@ export async function getDashboardData() {
     todayTasks,
   ] = await Promise.all([
     prisma.event.findFirst({
-      where: { type: "REGULAR_MEETING", startAt: { gte: now } },
+      where: { branchId, type: "REGULAR_MEETING", startAt: { gte: now } },
       orderBy: { startAt: "asc" },
       include: { team: true, chairMember: true, roomLeaderMember: true },
     }),
     prisma.event.findFirst({
-      where: { type: "NAJIRA", startAt: { gte: now } },
+      where: { branchId, type: "NAJIRA", startAt: { gte: now } },
       orderBy: { startAt: "asc" },
       include: { agendaItems: { orderBy: { sortOrder: "asc" } } },
     }),
     prisma.event.findMany({
       where: {
+        branchId,
         startAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) },
         type: { in: ["REGULAR_MEETING", "NAJIRA", "TEAM_MEETING", "FORUM", "GENERAL_MEETING"] },
       },
@@ -39,21 +40,23 @@ export async function getDashboardData() {
       include: { team: true },
     }),
     prisma.fileAsset.findMany({
+      where: { branchId },
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { uploadedBy: true, relatedEvent: true },
     }),
     prisma.fileAsset.findMany({
-      where: { type: "PHOTO" },
+      where: { branchId, type: "PHOTO" },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),
     prisma.team.findMany({
-      where: { fiscalYear: { isCurrent: true } },
+      where: { branchId, fiscalYear: { isCurrent: true } },
       include: { memberships: { include: { member: true } } },
     }),
     prisma.plan.findMany({
       where: {
+        branchId,
         isLatest: true,
         status: { in: ["WAITING_FOR_NAJIRA", "UNDER_DISCUSSION", "REVISION_REQUIRED"] },
       },
@@ -62,6 +65,7 @@ export async function getDashboardData() {
     }),
     prisma.event.findMany({
       where: {
+        branchId,
         type: "REGULAR_MEETING",
         startAt: { gte: now },
         plans: { none: {} },
@@ -69,13 +73,14 @@ export async function getDashboardData() {
       orderBy: { startAt: "asc" },
     }),
     prisma.linePost.findMany({
-      where: { status: { in: ["DRAFT", "SCHEDULED"] } },
+      where: { branchId, status: { in: ["DRAFT", "SCHEDULED"] } },
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { relatedEvent: true },
     }),
     prisma.candidate.findMany({
       where: {
+        branchId,
         nextActionDate: { lte: weekAhead },
         status: { notIn: ["JOINED", "DECLINED"] },
       },
@@ -84,12 +89,17 @@ export async function getDashboardData() {
       include: { assignedTo: true },
     }),
     prisma.task.findMany({
-      where: { status: { in: ["TODO", "DOING"] }, dueDate: { lt: new Date(now.toDateString()) } },
+      where: {
+        branchId,
+        status: { in: ["TODO", "DOING"] },
+        dueDate: { lt: new Date(now.toDateString()) },
+      },
       orderBy: { dueDate: "asc" },
       include: { assignedTo: true, relatedEvent: true },
     }),
     prisma.task.findMany({
       where: {
+        branchId,
         status: { in: ["TODO", "DOING"] },
         dueDate: {
           gte: new Date(now.toDateString()),

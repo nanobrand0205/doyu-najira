@@ -6,10 +6,26 @@ import type { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, type NavItem } from "@/lib/nav";
 import { atLeast } from "@/lib/permissions";
+import { useBranchLabels, type BranchLabels } from "@/components/providers/branch-settings-provider";
 
 export function isActivePath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
+}
+
+// なじら会/例会の名称は支部ごとに変わるため、共通のNAV_ITEMSラベルを
+// BranchSettingsの値で上書きする。
+export function resolveLabels(
+  item: NavItem,
+  labels: BranchLabels
+): { label: string; shortLabel: string } {
+  if (item.href === "/najira") {
+    return { label: labels.officerMeetingLabel, shortLabel: labels.officerMeetingLabel };
+  }
+  if (item.href === "/events") {
+    return { label: labels.regularMeetingLabel, shortLabel: labels.regularMeetingLabel };
+  }
+  return { label: item.label, shortLabel: item.shortLabel };
 }
 
 // NAV_ITEMS holds lucide icon components, which can't cross the
@@ -28,8 +44,10 @@ export function SidebarNav({ role }: { role: Role }) {
 
 export function SidebarNavLink({ item }: { item: NavItem }) {
   const pathname = usePathname();
+  const labels = useBranchLabels();
   const active = isActivePath(pathname, item.href);
   const Icon = item.icon;
+  const { label } = resolveLabels(item, labels);
 
   return (
     <Link
@@ -47,15 +65,17 @@ export function SidebarNavLink({ item }: { item: NavItem }) {
           active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]"
         )}
       />
-      {item.label}
+      {label}
     </Link>
   );
 }
 
 export function BottomNavLink({ item }: { item: NavItem }) {
   const pathname = usePathname();
+  const labels = useBranchLabels();
   const active = isActivePath(pathname, item.href);
   const Icon = item.icon;
+  const { shortLabel } = resolveLabels(item, labels);
 
   return (
     <Link
@@ -66,7 +86,7 @@ export function BottomNavLink({ item }: { item: NavItem }) {
       )}
     >
       <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
-      {item.shortLabel}
+      {shortLabel}
     </Link>
   );
 }

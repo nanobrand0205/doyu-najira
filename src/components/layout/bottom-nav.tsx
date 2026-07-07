@@ -7,13 +7,15 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
 import { atLeast } from "@/lib/permissions";
-import { BottomNavLink, isActivePath } from "./nav-link";
+import { BottomNavLink, isActivePath, resolveLabels } from "./nav-link";
+import { useBranchLabels } from "@/components/providers/branch-settings-provider";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_COUNT = 4;
 
 export function BottomNav({ role }: { role: Role }) {
+  const labels = useBranchLabels();
   const items = NAV_ITEMS.filter((item) => !item.minRole || atLeast(role, item.minRole));
   const primary = items.slice(0, PRIMARY_COUNT);
   const rest = items.slice(PRIMARY_COUNT);
@@ -45,6 +47,7 @@ export function BottomNav({ role }: { role: Role }) {
               {rest.map((item) => {
                 const Icon = item.icon;
                 const active = isActivePath(pathname, item.href);
+                const { label } = resolveLabels(item, labels);
                 return (
                   <Link
                     key={item.href}
@@ -58,7 +61,7 @@ export function BottomNav({ role }: { role: Role }) {
                     )}
                   >
                     <Icon className="h-5 w-5" />
-                    {item.label}
+                    {label}
                   </Link>
                 );
               })}

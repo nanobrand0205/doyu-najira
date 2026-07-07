@@ -31,13 +31,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "候補者フォロー",
     shortLabel: "候補者",
     icon: UserPlus,
-    minRole: "SECRETARY",
+    minRole: "BRANCH_MANAGER",
   },
   {
     href: "/settings",
     label: "設定",
     shortLabel: "設定",
     icon: Settings,
-    minRole: "SECRETARY",
+    minRole: "BRANCH_MANAGER",
   },
 ];

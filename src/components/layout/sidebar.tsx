@@ -1,19 +1,27 @@
 import type { Role } from "@prisma/client";
 import { SidebarNav } from "./nav-link";
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({
+  role,
+  displayName,
+  branchName,
+}: {
+  role: Role;
+  displayName: string;
+  branchName: string;
+}) {
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]/60 px-4 py-6 backdrop-blur-xl lg:flex">
       <div className="mb-8 flex items-center gap-2.5 px-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary)] text-sm font-bold text-[var(--primary-foreground)]">
-          な
+          {displayName.slice(0, 1)}
         </div>
         <div>
           <p className="text-[14px] font-semibold leading-tight tracking-tight">
-            なじらボード
+            {displayName}
           </p>
           <p className="text-[11px] leading-tight text-[var(--muted-foreground)]">
-            三条支部
+            {branchName}
           </p>
         </div>
       </div>

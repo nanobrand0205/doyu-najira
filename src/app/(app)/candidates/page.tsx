@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireBranchSession } from "@/lib/data/guard";
 import { listCandidates } from "@/lib/data/candidates";
 import { canEditOperations } from "@/lib/permissions";
 import { PageHeader } from "@/components/layout/page-header";
@@ -7,11 +7,11 @@ import { CandidatesBrowser } from "@/components/candidates/candidates-browser";
 import { NewCandidateDialog } from "@/components/candidates/new-candidate-dialog";
 
 export default async function CandidatesPage() {
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
+  const { session, branchId } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
     redirect("/");
   }
-  const candidates = await listCandidates();
+  const candidates = await listCandidates(branchId);
 
   return (
     <div>

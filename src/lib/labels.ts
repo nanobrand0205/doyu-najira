@@ -7,7 +7,6 @@ import type {
   FileType,
   LinePostStatus,
   EmailStatus,
-  TeamName,
   EventType,
 } from "@prisma/client";
 import type { BadgeProps } from "@/components/ui/badge";
@@ -155,11 +154,4 @@ export const EMAIL_STATUS_LABEL: Record<EmailStatus, string> = {
   DRAFT: "下書き",
   SENT: "送信済み",
   FAILED: "送信失敗",
-};
-
-export const TEAM_NAME_LABEL: Record<TeamName, string> = {
-  MANABI: "学びチーム",
-  KOURYU: "交流チーム",
-  FRIENDSHIP: "フレンドシップチーム",
-  OTHER: "その他",
 };

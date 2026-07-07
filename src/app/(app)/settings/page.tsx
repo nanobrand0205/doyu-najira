@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireBranchSession } from "@/lib/data/guard";
 import { prisma } from "@/lib/prisma";
 import { canEditOperations, canManageSensitive } from "@/lib/permissions";
 import { PageHeader } from "@/components/layout/page-header";
@@ -10,26 +10,33 @@ import { UserRoleTable } from "@/components/settings/user-role-table";
 import { FiscalYearManager } from "@/components/settings/fiscal-year-manager";
 
 export default async function SettingsPage() {
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
+  const { session, branchId } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
     redirect("/");
   }
 
-  const isManager = canManageSensitive(session?.user.role);
-  const [account, years, users] = await Promise.all([
-    session?.user.id
-      ? prisma.account.findFirst({ where: { userId: session.user.id, provider: "google" } })
-      : null,
-    isManager ? prisma.fiscalYear.findMany({ orderBy: { year: "desc" } }) : Promise.resolve([]),
-    isManager ? prisma.user.findMany({ orderBy: { createdAt: "asc" } }) : Promise.resolve([]),
+  const isManager = canManageSensitive(session.user.role);
+  const [googleIntegration, branchSettings, years, users] = await Promise.all([
+    prisma.googleIntegration.findUnique({ where: { branchId } }),
+    prisma.branchSettings.findUnique({ where: { branchId } }),
+    isManager
+      ? prisma.fiscalYear.findMany({ where: { branchId }, orderBy: { year: "desc" } })
+      : Promise.resolve([]),
+    isManager
+      ? prisma.user.findMany({ where: { branchId }, orderBy: { createdAt: "asc" } })
+      : Promise.resolve([]),
   ]);
+  const branchName = branchSettings?.branchName ?? "支部";
 
   return (
     <div>
       <PageHeader title="設定" description="Google連携、年度、権限を管理します。" />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <GoogleConnectionCard connected={!!account} />
+        <GoogleConnectionCard
+          connected={googleIntegration?.status === "CONNECTED"}
+          connectedEmail={googleIntegration?.connectedEmail}
+        />
 
         <Card>
           <CardHeader>
@@ -40,10 +47,10 @@ export default async function SettingsPage() {
               Google連携後、以下のカレンダーへ自動登録します(Phase 2)。
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <Badge variant="neutral">三条支部_公式行事</Badge>
-              <Badge variant="neutral">三条支部_準備締切</Badge>
-              <Badge variant="neutral">三条支部_チームMTG</Badge>
-              <Badge variant="neutral">三条支部_候補者フォロー</Badge>
+              <Badge variant="neutral">{branchName}_公式行事</Badge>
+              <Badge variant="neutral">{branchName}_準備締切</Badge>
+              <Badge variant="neutral">{branchName}_チームMTG</Badge>
+              <Badge variant="neutral">{branchName}_候補者フォロー</Badge>
             </div>
           </CardContent>
         </Card>

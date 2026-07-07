@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Building2, Globe, MapPin } from "lucide-react";
+import { requireBranchSession } from "@/lib/data/guard";
 import { getMemberDetail } from "@/lib/data/members";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,8 @@ export default async function MemberDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const member = await getMemberDetail(id);
+  const { branchId } = await requireBranchSession();
+  const member = await getMemberDetail(id, branchId);
   if (!member) notFound();
 
   const currentTeam = member.teamMemberships.find((tm) => tm.team.fiscalYear.isCurrent);

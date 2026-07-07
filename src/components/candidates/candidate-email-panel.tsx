@@ -11,6 +11,7 @@ import { formatDateTime } from "@/lib/format";
 import { EMAIL_STATUS_LABEL } from "@/lib/labels";
 import { gmailInvitationTemplate, gmailThanksTemplate } from "@/lib/templates";
 import { markEmailSent, saveEmailDraft } from "@/app/(app)/candidates/actions";
+import { useBranchLabels } from "@/components/providers/branch-settings-provider";
 import type { Candidate, EmailLog, Event } from "@prisma/client";
 
 export function CandidateEmailPanel({
@@ -24,8 +25,13 @@ export function CandidateEmailPanel({
   emailLogs: EmailLog[];
   editable: boolean;
 }) {
-  const invite = nextEvent ? gmailInvitationTemplate(nextEvent, candidate.name) : null;
-  const thanks = nextEvent ? gmailThanksTemplate(nextEvent, candidate.name) : null;
+  const labels = useBranchLabels();
+  const invite = nextEvent
+    ? gmailInvitationTemplate(nextEvent, candidate.name, labels.signatureName)
+    : null;
+  const thanks = nextEvent
+    ? gmailThanksTemplate(nextEvent, candidate.name, labels.signatureName)
+    : null;
   const [inviteBody, setInviteBody] = useState(invite?.body ?? "");
   const [thanksBody, setThanksBody] = useState(thanks?.body ?? "");
   const [isPending, startTransition] = useTransition();

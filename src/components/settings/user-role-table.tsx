@@ -14,7 +14,8 @@ import { roleLabel } from "@/lib/permissions";
 import { updateUserRole } from "@/app/(app)/settings/actions";
 import type { Role, User } from "@prisma/client";
 
-const ROLES: Role[] = ["MEMBER", "SECRETARY", "ADMIN", "MANAGER"];
+// SUPER_ADMINはbranch_admin向けのこの画面からは付与できない (支部横断の権限のため)
+const ROLES: Role[] = ["VIEWER", "BRANCH_MEMBER", "BRANCH_MANAGER", "BRANCH_ADMIN"];
 
 export function UserRoleTable({ users }: { users: User[] }) {
   const [isPending, startTransition] = useTransition();

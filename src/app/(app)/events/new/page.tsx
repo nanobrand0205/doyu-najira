@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireBranchSession } from "@/lib/data/guard";
 import { prisma } from "@/lib/prisma";
 import { canEditOperations } from "@/lib/permissions";
 import { PageHeader } from "@/components/layout/page-header";
@@ -11,11 +11,11 @@ import { Button } from "@/components/ui/button";
 import { createEvent } from "./actions";
 
 export default async function NewEventPage() {
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
+  const { session, branchId } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
     redirect("/events");
   }
-  const teams = await prisma.team.findMany({ where: { fiscalYear: { isCurrent: true } } });
+  const teams = await prisma.team.findMany({ where: { branchId, fiscalYear: { isCurrent: true } } });
 
   return (
     <div className="mx-auto max-w-2xl">

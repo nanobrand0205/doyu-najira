@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { testDriveConnection } from "@/app/(app)/settings/actions";
 
-export function GoogleConnectionCard({ connected }: { connected: boolean }) {
+export function GoogleConnectionCard({
+  connected,
+  connectedEmail,
+}: {
+  connected: boolean;
+  connectedEmail?: string | null;
+}) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<string | null>(null);
 
@@ -41,7 +47,8 @@ export function GoogleConnectionCard({ connected }: { connected: boolean }) {
           )}
         </div>
         <CardDescription>
-          Drive・Calendar・GmailはGoogle OAuthで連携します。三条支部専用のGoogleアカウントでログインしてください。
+          Drive・Calendar・Gmailは支部専用のGoogle Workspaceアカウントと連携します
+          (個人のログインアカウントとは別です)。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -50,15 +57,27 @@ export function GoogleConnectionCard({ connected }: { connected: boolean }) {
           <li>・Calendar: 例会・なじら会・締切のリマインダー登録</li>
           <li>・Gmail: 入会候補者への案内・お礼メール送信</li>
         </ul>
+        {connected && connectedEmail && (
+          <p className="text-[12px] text-[var(--muted-foreground)]">
+            連携アカウント: {connectedEmail}
+          </p>
+        )}
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={handleTest} disabled={isPending}>
-            Driveフォルダ構成を作成
+          <Button asChild size="sm" variant={connected ? "secondary" : "default"}>
+            <a href="/api/google/connect">
+              {connected ? "再連携する" : "支部としてGoogleに接続する"}
+            </a>
           </Button>
+          {connected && (
+            <Button size="sm" variant="outline" onClick={handleTest} disabled={isPending}>
+              Driveフォルダ構成を作成
+            </Button>
+          )}
         </div>
         {result && <p className="text-[12px] text-[var(--muted-foreground)]">{result}</p>}
         {!connected && (
           <p className="text-[11px] text-[var(--muted-foreground)]">
-            未連携の場合、GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET を設定してGoogleでログインし直してください。
+            接続できない場合、環境変数 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET が設定されているか確認してください。
           </p>
         )}
       </CardContent>

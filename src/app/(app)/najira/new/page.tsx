@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireBranchSession } from "@/lib/data/guard";
 import { canEditOperations } from "@/lib/permissions";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { createNajira } from "./actions";
 
 export default async function NewNajiraPage() {
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
+  const { session } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
     redirect("/najira");
   }
 

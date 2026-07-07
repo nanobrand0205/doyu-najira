@@ -1,15 +1,10 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 
-const GOOGLE_SCOPES = [
-  "openid",
-  "email",
-  "profile",
-  "https://www.googleapis.com/auth/drive.file",
-  "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/gmail.send",
-  "https://www.googleapis.com/auth/gmail.compose",
-].join(" ");
+// Personal login only needs identity scopes. Drive/Calendar/Gmail access is
+// connected separately per-branch via /api/google/connect (see
+// src/lib/google/scopes.ts), independent of who happens to be logged in.
+const GOOGLE_SCOPES = ["openid", "email", "profile"].join(" ");
 
 const PUBLIC_PATHS = ["/login"];
 
@@ -25,11 +20,7 @@ export const authConfig: NextAuthConfig = {
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
             authorization: {
-              params: {
-                scope: GOOGLE_SCOPES,
-                access_type: "offline",
-                prompt: "consent",
-              },
+              params: { scope: GOOGLE_SCOPES },
             },
           }),
         ]

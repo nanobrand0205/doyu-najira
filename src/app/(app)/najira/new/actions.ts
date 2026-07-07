@@ -1,14 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEditOperations } from "@/lib/permissions";
+import { requireBranchSession, BranchAccessError } from "@/lib/data/guard";
 
 export async function createNajira(formData: FormData) {
-  const session = await auth();
-  if (!canEditOperations(session?.user.role)) {
-    throw new Error("この操作を行う権限がありません。");
+  const { session, branchId } = await requireBranchSession();
+  if (!canEditOperations(session.user.role)) {
+    throw new BranchAccessError("この操作を行う権限がありません。");
   }
 
   const dateStr = String(formData.get("date") ?? "");
@@ -20,9 +20,13 @@ export async function createNajira(formData: FormData) {
   const startAt = new Date(`${dateStr}T${startTime}:00`);
   const endAt = new Date(`${dateStr}T${endTime}:00`);
 
+  const branchSettings = await prisma.branchSettings.findUnique({ where: { branchId } });
+  const meetingLabel = branchSettings?.officerMeetingLabel ?? "幹事会";
+
   const event = await prisma.event.create({
     data: {
-      title: `${startAt.getMonth() + 1}月なじら会`,
+      branchId,
+      title: `${startAt.getMonth() + 1}月${meetingLabel}`,
       type: "NAJIRA",
       year: startAt.getFullYear(),
       month: startAt.getMonth() + 1,

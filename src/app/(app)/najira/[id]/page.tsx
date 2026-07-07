@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { requireBranchSession } from "@/lib/data/guard";
 import { getNajiraDetail } from "@/lib/data/najira";
 import { canEditOperations } from "@/lib/permissions";
 import { PageHeader } from "@/components/layout/page-header";
@@ -21,11 +21,12 @@ export default async function NajiraDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [session, data] = await Promise.all([auth(), getNajiraDetail(id)]);
+  const { session, branchId } = await requireBranchSession();
+  const data = await getNajiraDetail(id, branchId);
   if (!data) notFound();
 
   const { event, detail, plansUpForDiscussion, nextNajira } = data;
-  const editable = canEditOperations(session?.user.role);
+  const editable = canEditOperations(session.user.role);
   const lineText = najiraLineTemplate(
     event,
     event.agendaItems.map((a) => a.title)

@@ -5,23 +5,22 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MemberCard } from "./member-card";
-import { TEAM_NAME_LABEL } from "@/lib/labels";
 import type { MemberListItem } from "@/lib/data/members";
-import type { TeamName } from "@prisma/client";
 
 export function MembersBrowser({ members }: { members: MemberListItem[] }) {
   const [team, setTeam] = useState<string>("all");
   const [query, setQuery] = useState("");
 
   const teamOptions = useMemo(() => {
-    const set = new Set<TeamName>();
-    members.forEach((m) => m.teamMemberships.forEach((tm) => set.add(tm.team.name)));
+    const set = new Set<string>();
+    members.forEach((m) => m.teamMemberships.forEach((tm) => set.add(tm.team.displayName)));
     return Array.from(set);
   }, [members]);
 
   const filtered = useMemo(() => {
     return members.filter((m) => {
-      if (team !== "all" && !m.teamMemberships.some((tm) => tm.team.name === team)) return false;
+      if (team !== "all" && !m.teamMemberships.some((tm) => tm.team.displayName === team))
+        return false;
       if (query) {
         const q = query.toLowerCase();
         const hit =
@@ -43,7 +42,7 @@ export function MembersBrowser({ members }: { members: MemberListItem[] }) {
             <TabsTrigger value="all">すべて</TabsTrigger>
             {teamOptions.map((t) => (
               <TabsTrigger key={t} value={t}>
-                {TEAM_NAME_LABEL[t]}
+                {t}
               </TabsTrigger>
             ))}
           </TabsList>

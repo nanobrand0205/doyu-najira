@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "なじらボード | 三条支部",
-  description: "新潟県中小企業家同友会 三条支部 運営ボード",
+  title: "Doyu Board",
+  description: "同友会 支部運営ボード",
 };
 
 const themeInitScript = `

@@ -1,16 +1,16 @@
 import { prisma } from "@/lib/prisma";
 
-export function listNajira() {
+export function listNajira(branchId: string) {
   return prisma.event.findMany({
-    where: { type: "NAJIRA" },
+    where: { branchId, type: "NAJIRA" },
     orderBy: { startAt: "desc" },
     include: { agendaItems: { orderBy: { sortOrder: "asc" } } },
   });
 }
 
-export async function getNajiraDetail(id: string) {
-  const event = await prisma.event.findUnique({
-    where: { id },
+export async function getNajiraDetail(id: string, branchId: string) {
+  const event = await prisma.event.findFirst({
+    where: { id, branchId },
     include: {
       agendaItems: { orderBy: { sortOrder: "asc" } },
       files: { orderBy: { createdAt: "desc" } },
@@ -23,6 +23,7 @@ export async function getNajiraDetail(id: string) {
     prisma.najiraDetail.findUnique({ where: { eventId: id } }),
     prisma.plan.findMany({
       where: {
+        branchId,
         isLatest: true,
         status: { in: ["WAITING_FOR_NAJIRA", "UNDER_DISCUSSION", "REVISION_REQUIRED", "APPROVED"] },
       },
@@ -30,7 +31,7 @@ export async function getNajiraDetail(id: string) {
       orderBy: { updatedAt: "desc" },
     }),
     prisma.event.findFirst({
-      where: { type: "NAJIRA", startAt: { gt: event.startAt } },
+      where: { branchId, type: "NAJIRA", startAt: { gt: event.startAt } },
       orderBy: { startAt: "asc" },
     }),
   ]);

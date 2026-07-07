@@ -1,7 +1,6 @@
 import {
   PrismaClient,
   Role,
-  TeamName,
   EventType,
   EventStatus,
   PlanStatus,
@@ -20,17 +19,38 @@ function d(year: number, month: number, day: number, hour = 0, minute = 0) {
 }
 
 async function main() {
-  console.log("Seeding なじらボード demo data...");
+  console.log("Seeding Doyu Board demo data (三条支部)...");
+
+  // -------------------------------------------------------------------
+  // 支部 (テナント) - 三条支部のみを初期データとして作成
+  // -------------------------------------------------------------------
+  await prisma.branch.deleteMany({ where: { slug: "sanjo" } });
+
+  const branch = await prisma.branch.create({
+    data: {
+      slug: "sanjo",
+      settings: {
+        create: {
+          branchName: "三条支部",
+          displayName: "なじらボード",
+          officerMeetingLabel: "なじら会",
+          regularMeetingLabel: "例会",
+          teamLabel: "チーム",
+          signatureName: "新潟県中小企業家同友会 三条支部",
+        },
+      },
+    },
+  });
+  const branchId = branch.id;
 
   // -------------------------------------------------------------------
   // 年度
   // -------------------------------------------------------------------
-  await prisma.fiscalYear.deleteMany();
   const fy2026 = await prisma.fiscalYear.create({
-    data: { year: 2026, isCurrent: true },
+    data: { branchId, year: 2026, isCurrent: true },
   });
   const fy2025 = await prisma.fiscalYear.create({
-    data: { year: 2025, isCurrent: false },
+    data: { branchId, year: 2025, isCurrent: false },
   });
 
   // -------------------------------------------------------------------
@@ -256,7 +276,7 @@ async function main() {
 
   const members = [];
   for (const m of membersData) {
-    members.push(await prisma.member.create({ data: m }));
+    members.push(await prisma.member.create({ data: { ...m, branchId } }));
   }
   const [
     kobayashi,
@@ -275,15 +295,21 @@ async function main() {
 
   // -------------------------------------------------------------------
   // ユーザー(ログイン用) - 役割ごとのデモアカウント
+  // 事務局・支部長・副支部長・幹事長はいずれもBRANCH_ADMINに統合
   // -------------------------------------------------------------------
   await prisma.user.createMany({
     data: [
-      { name: kondo.name, email: kondo.email!, role: Role.MANAGER, memberId: kondo.id },
-      { name: hasegawa.name, email: hasegawa.email!, role: Role.MANAGER, memberId: hasegawa.id },
-      { name: watanabe.name, email: watanabe.email!, role: Role.SECRETARY, memberId: watanabe.id },
-      { name: office.name, email: office.email!, role: Role.ADMIN, memberId: office.id },
-      { name: tanaka.name, email: tanaka.email!, role: Role.MEMBER, memberId: tanaka.id },
+      { name: kondo.name, email: kondo.email!, role: Role.BRANCH_ADMIN, branchId, memberId: kondo.id },
+      { name: hasegawa.name, email: hasegawa.email!, role: Role.BRANCH_ADMIN, branchId, memberId: hasegawa.id },
+      { name: watanabe.name, email: watanabe.email!, role: Role.BRANCH_MANAGER, branchId, memberId: watanabe.id },
+      { name: office.name, email: office.email!, role: Role.BRANCH_ADMIN, branchId, memberId: office.id },
+      { name: tanaka.name, email: tanaka.email!, role: Role.BRANCH_MEMBER, branchId, memberId: tanaka.id },
     ],
+  });
+
+  // 運営側管理者 (全支部管理、branchIdなし)
+  await prisma.user.create({
+    data: { name: "運営管理者", email: "admin@doyuboard.example.jp", role: Role.SUPER_ADMIN },
   });
 
   // -------------------------------------------------------------------
@@ -291,8 +317,8 @@ async function main() {
   // -------------------------------------------------------------------
   const teamManabi = await prisma.team.create({
     data: {
+      branchId,
       fiscalYearId: fy2026.id,
-      name: TeamName.MANABI,
       displayName: "学びチーム",
       description: "経営指針・経営者としての学びをテーマにした例会を担当。",
       najiraTheme: "経営指針の実践と共有",
@@ -300,8 +326,8 @@ async function main() {
   });
   const teamKouryu = await prisma.team.create({
     data: {
+      branchId,
       fiscalYearId: fy2026.id,
-      name: TeamName.KOURYU,
       displayName: "交流チーム",
       description: "会員同士・地域との交流を深める例会を担当。",
       najiraTheme: "業種を超えた繋がりづくり",
@@ -309,8 +335,8 @@ async function main() {
   });
   const teamFriendship = await prisma.team.create({
     data: {
+      branchId,
       fiscalYearId: fy2026.id,
-      name: TeamName.FRIENDSHIP,
       displayName: "フレンドシップチーム",
       description: "新入会員・ゲストのフォローと増強を担当。",
       najiraTheme: "入会候補者フォローの強化",
@@ -359,11 +385,18 @@ async function main() {
     { title: "事務局", category: "事務局", memberId: office.id, sortOrder: 11 },
   ];
   for (const p of positions) {
-    await prisma.orgPosition.create({ data: { ...p, fiscalYearId: fy2026.id } });
+    await prisma.orgPosition.create({ data: { ...p, branchId, fiscalYearId: fy2026.id } });
   }
   // 2025年度(過去)は簡易的に支部長のみ
   await prisma.orgPosition.create({
-    data: { title: "支部長", category: "役員", memberId: homma.id, sortOrder: 0, fiscalYearId: fy2025.id },
+    data: {
+      title: "支部長",
+      category: "役員",
+      memberId: homma.id,
+      sortOrder: 0,
+      branchId,
+      fiscalYearId: fy2025.id,
+    },
   });
 
   // -------------------------------------------------------------------
@@ -371,6 +404,7 @@ async function main() {
   // -------------------------------------------------------------------
   const julyMeeting = await prisma.event.create({
     data: {
+      branchId,
       year: 2026,
       month: 7,
       title: "7月例会「金属加工業の生きた経営に学ぶ」",
@@ -398,6 +432,7 @@ async function main() {
 
   const augMeeting = await prisma.event.create({
     data: {
+      branchId,
       year: 2026,
       month: 8,
       title: "8月合同例会「三条・燕 ものづくり合同例会」",
@@ -423,6 +458,7 @@ async function main() {
 
   const juneMeetingDone = await prisma.event.create({
     data: {
+      branchId,
       year: 2026,
       month: 6,
       title: "6月例会「事業承継のリアル」",
@@ -446,6 +482,7 @@ async function main() {
 
   const najiraJuly = await prisma.event.create({
     data: {
+      branchId,
       year: 2026,
       month: 7,
       title: "7月なじら会",
@@ -459,6 +496,7 @@ async function main() {
 
   const najiraAug = await prisma.event.create({
     data: {
+      branchId,
       year: 2026,
       month: 8,
       title: "8月なじら会",
@@ -472,6 +510,7 @@ async function main() {
 
   await prisma.najiraDetail.create({
     data: {
+      branchId,
       eventId: najiraJuly.id,
       decisions:
         "・7月例会の役割分担を確定\n・8月合同例会は燕支部との共催で調整継続\n・9月例会テーマは「価格転嫁」に決定",
@@ -483,15 +522,16 @@ async function main() {
 
   await prisma.najiraAgendaItem.createMany({
     data: [
-      { eventId: najiraAug.id, title: "7月例会の振り返り", sortOrder: 0 },
-      { eventId: najiraAug.id, title: "8月合同例会の最終確認", sortOrder: 1 },
-      { eventId: najiraAug.id, title: "9月例会企画書の協議", sortOrder: 2 },
-      { eventId: najiraAug.id, title: "候補者フォロー状況の共有", sortOrder: 3 },
+      { branchId, eventId: najiraAug.id, title: "7月例会の振り返り", sortOrder: 0 },
+      { branchId, eventId: najiraAug.id, title: "8月合同例会の最終確認", sortOrder: 1 },
+      { branchId, eventId: najiraAug.id, title: "9月例会企画書の協議", sortOrder: 2 },
+      { branchId, eventId: najiraAug.id, title: "候補者フォロー状況の共有", sortOrder: 3 },
     ],
   });
 
   await prisma.event.create({
     data: {
+      branchId,
       year: 2026,
       month: 7,
       title: "学びチーム定例ミーティング",
@@ -509,6 +549,7 @@ async function main() {
   // -------------------------------------------------------------------
   await prisma.plan.create({
     data: {
+      branchId,
       eventId: julyMeeting.id,
       title: "7月例会 企画書 v3",
       status: PlanStatus.ANNOUNCING,
@@ -523,6 +564,7 @@ async function main() {
   });
   await prisma.plan.create({
     data: {
+      branchId,
       eventId: julyMeeting.id,
       title: "7月例会 企画書 v2",
       status: PlanStatus.REVISION_REQUIRED,
@@ -534,6 +576,7 @@ async function main() {
   });
   await prisma.plan.create({
     data: {
+      branchId,
       eventId: augMeeting.id,
       title: "8月合同例会 企画書 v1",
       status: PlanStatus.WAITING_FOR_NAJIRA,
@@ -546,6 +589,7 @@ async function main() {
   });
   await prisma.plan.create({
     data: {
+      branchId,
       eventId: juneMeetingDone.id,
       title: "6月例会 企画書 v2",
       status: PlanStatus.REVIEW_DONE,
@@ -564,6 +608,7 @@ async function main() {
   await prisma.fileAsset.createMany({
     data: [
       {
+        branchId,
         title: "7月例会チラシ_最新版.pdf",
         type: FileType.FLYER,
         relatedEventId: julyMeeting.id,
@@ -572,6 +617,7 @@ async function main() {
         uploadedById: tanaka.id,
       },
       {
+        branchId,
         title: "7月例会 企画書v3.pdf",
         type: FileType.PLAN,
         relatedEventId: julyMeeting.id,
@@ -580,6 +626,7 @@ async function main() {
         uploadedById: igarashi.id,
       },
       {
+        branchId,
         title: "7月なじら会 次第.pdf",
         type: FileType.NAJIRA_MATERIAL,
         relatedEventId: najiraJuly.id,
@@ -588,6 +635,7 @@ async function main() {
         uploadedById: office.id,
       },
       {
+        branchId,
         title: "6月例会 議事録.docx",
         type: FileType.MINUTES,
         relatedEventId: juneMeetingDone.id,
@@ -596,6 +644,7 @@ async function main() {
         uploadedById: office.id,
       },
       {
+        branchId,
         title: "6月例会 集合写真.jpg",
         type: FileType.PHOTO,
         relatedEventId: juneMeetingDone.id,
@@ -604,6 +653,7 @@ async function main() {
         uploadedById: uchiyama.id,
       },
       {
+        branchId,
         title: "2026年度 組織図.pdf",
         type: FileType.ORGANIZATION,
         driveUrl: "https://drive.google.com/file/d/2026-orgchart/view",
@@ -611,6 +661,7 @@ async function main() {
         uploadedById: office.id,
       },
       {
+        branchId,
         title: "入会候補者ゲスト管理表.xlsx",
         type: FileType.GUEST_LIST,
         driveUrl: "https://drive.google.com/file/d/guest-list/view",
@@ -626,6 +677,7 @@ async function main() {
   await prisma.task.createMany({
     data: [
       {
+        branchId,
         title: "7月例会 e-doyu登録内容の最終確認",
         relatedEventId: julyMeeting.id,
         assignedToId: office.id,
@@ -634,6 +686,7 @@ async function main() {
         priority: TaskPriority.HIGH,
       },
       {
+        branchId,
         title: "7月例会 LINE一次案内を投稿",
         relatedEventId: julyMeeting.id,
         assignedToId: igarashi.id,
@@ -642,6 +695,7 @@ async function main() {
         priority: TaskPriority.MEDIUM,
       },
       {
+        branchId,
         title: "8月合同例会 燕支部との会場費按分を確定",
         relatedEventId: augMeeting.id,
         assignedToId: hasegawa.id,
@@ -650,6 +704,7 @@ async function main() {
         priority: TaskPriority.HIGH,
       },
       {
+        branchId,
         title: "8月合同例会 チラシ最終稿をDriveに保存",
         relatedEventId: augMeeting.id,
         assignedToId: tanaka.id,
@@ -658,6 +713,7 @@ async function main() {
         priority: TaskPriority.MEDIUM,
       },
       {
+        branchId,
         title: "6月例会 お礼メール送信",
         relatedEventId: juneMeetingDone.id,
         assignedToId: saito.id,
@@ -666,6 +722,7 @@ async function main() {
         priority: TaskPriority.LOW,
       },
       {
+        branchId,
         title: "9月例会テーマ案をチームMTGで検討",
         assignedToId: homma.id,
         dueDate: d(2026, 7, 31),
@@ -680,6 +737,7 @@ async function main() {
   // -------------------------------------------------------------------
   const candidate1 = await prisma.candidate.create({
     data: {
+      branchId,
       name: "外山 賢一",
       companyName: "外山電気工事",
       position: "代表",
@@ -697,6 +755,7 @@ async function main() {
   });
   const candidate2 = await prisma.candidate.create({
     data: {
+      branchId,
       name: "桜井 美咲",
       companyName: "さくらいカフェ",
       position: "オーナー",
@@ -712,6 +771,7 @@ async function main() {
   });
   const candidate3 = await prisma.candidate.create({
     data: {
+      branchId,
       name: "村上 健太",
       companyName: "村上鉄工所",
       position: "専務",
@@ -728,6 +788,7 @@ async function main() {
   });
   await prisma.candidate.create({
     data: {
+      branchId,
       name: "橋本 直美",
       companyName: "はしもと歯科医院",
       position: "院長",
@@ -741,6 +802,7 @@ async function main() {
   await prisma.emailLog.createMany({
     data: [
       {
+        branchId,
         candidateId: candidate1.id,
         subject: "【御礼】6月例会へのご参加ありがとうございました",
         body: "外山様\n\n先日は三条支部6月例会にご参加いただき誠にありがとうございました。\n引き続き7月例会もぜひご参加ください。",
@@ -748,6 +810,7 @@ async function main() {
         sentAt: d(2026, 6, 27),
       },
       {
+        branchId,
         candidateId: candidate2.id,
         subject: "【ご案内】三条支部7月例会のご案内",
         body: "桜井様\n\n三条支部の7月例会をご案内いたします。\n日時:7月24日(金)18:30〜\nテーマ:金属加工業の生きた経営に学ぶ",
@@ -755,6 +818,7 @@ async function main() {
         sentAt: d(2026, 7, 1),
       },
       {
+        branchId,
         candidateId: candidate3.id,
         subject: "【ご相談】入会についてのご相談",
         body: "村上様\n\n先日はお時間をいただきありがとうございました。\n入会についてご不明点があればいつでもご連絡ください。",
@@ -769,6 +833,7 @@ async function main() {
   await prisma.linePost.createMany({
     data: [
       {
+        branchId,
         relatedEventId: julyMeeting.id,
         title: "7月例会 一次案内",
         body: "【7月例会のご案内】\n三条支部7月例会を開催します。\n日時:7/24(金) 18:30〜20:30\n会場:三条市東公民館 大ホール\nテーマ:金属加工業の生きた経営に学ぶ\n報告者:田中亮氏(田中製作所)\n詳細・出欠はこちら:https://e-doyu.example.jp/events/2026-07\nぜひご参加ください!",
@@ -777,6 +842,7 @@ async function main() {
         postedById: igarashi.id,
       },
       {
+        branchId,
         relatedEventId: julyMeeting.id,
         title: "7月例会 前日リマインド",
         body: "【明日開催】三条支部7月例会\n明日7/24(金)18:30〜、三条市東公民館にて開催します。\nお忘れなくご参加ください!懇親会もぜひ。",
@@ -784,6 +850,7 @@ async function main() {
         scheduledDate: d(2026, 7, 23),
       },
       {
+        branchId,
         relatedEventId: najiraAug.id,
         title: "8月なじら会 案内",
         body: "【8月なじら会のご案内】\n日時:8/4(火) 18:30〜20:30\n会場:三条商工会議所 会議室A\n議題:7月例会振り返り、8月合同例会確認、9月例会企画書、候補者フォロー",

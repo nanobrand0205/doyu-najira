@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { requireBranchSession } from "@/lib/data/guard";
 import { listFiscalYears, getOrgChart } from "@/lib/data/organization";
+import { getBranchSettings } from "@/lib/branch-settings";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,9 +16,13 @@ export default async function OrganizationPage({
   searchParams: Promise<{ year?: string }>;
 }) {
   const { year } = await searchParams;
-  const years = await listFiscalYears();
+  const { branchId } = await requireBranchSession();
+  const [years, labels] = await Promise.all([
+    listFiscalYears(branchId),
+    getBranchSettings(branchId),
+  ]);
   const selectedYear = year ? Number(year) : years.find((y) => y.isCurrent)?.year;
-  const data = await getOrgChart(selectedYear);
+  const data = await getOrgChart(branchId, selectedYear);
 
   if (!data) {
     return (
@@ -35,7 +41,7 @@ export default async function OrganizationPage({
     <div>
       <PageHeader
         title="組織図"
-        description="今年度、三条支部にどんな役職の会員がいるかがわかります。"
+        description={`今年度、${labels.branchName}にどんな役職の会員がいるかがわかります。`}
         actions={
           <YearSelect years={years.map((y) => y.year)} current={data.fiscalYear.year} />
         }
