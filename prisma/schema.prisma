@@ -1,0 +1,468 @@
+// なじらボード - Prisma Schema
+// 新潟県中小企業家同友会 三条支部 運営アプリ
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (NextAuth.js)
+// ---------------------------------------------------------------------------
+
+enum Role {
+  MEMBER // 全会員
+  SECRETARY // 幹事
+  MANAGER // 支部長・副支部長・幹事長
+  ADMIN // 事務局 / システム管理者
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(MEMBER)
+  memberId      String?   @unique
+  member        Member?   @relation(fields: [memberId], references: [id])
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// 支部年度
+// ---------------------------------------------------------------------------
+
+model FiscalYear {
+  id        String        @id @default(cuid())
+  year      Int           @unique
+  isCurrent Boolean       @default(false)
+  teams     Team[]
+  positions OrgPosition[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// 会員
+// ---------------------------------------------------------------------------
+
+model Member {
+  id                 String  @id @default(cuid())
+  name               String
+  photoUrl           String?
+  companyName        String
+  companyPosition    String?
+  industry           String?
+  companyAddress     String?
+  companyWebsite     String?
+  companyDescription String? @db.Text
+  mainServices       String? @db.Text
+  strengths          String? @db.Text
+  consultable        String? @db.Text
+  wantedIntroduction String? @db.Text
+  joinedYear         Int?
+  introducedBy       String?
+  reportExperience   Boolean @default(false)
+  learningGoal       String? @db.Text
+  currentChallenge   String? @db.Text
+  hobby              String?
+  profileText        String? @db.Text
+  isActive           Boolean @default(true)
+  email              String?
+  phone              String?
+
+  user User?
+
+  teamMemberships      TeamMembership[]
+  orgPositions         OrgPosition[]
+  chairedEvents        Event[]          @relation("EventChair")
+  roomLeaderEvents     Event[]          @relation("EventRoomLeader")
+  introducedCandidates Candidate[]      @relation("CandidateIntroducedBy")
+  assignedCandidates   Candidate[]      @relation("CandidateAssignedTo")
+  assignedTasks        Task[]
+  uploadedFiles        FileAsset[]
+  postedLinePosts      LinePost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TeamName {
+  MANABI // 学びチーム
+  KOURYU // 交流チーム
+  FRIENDSHIP // フレンドシップチーム
+  OTHER
+}
+
+model Team {
+  id           String     @id @default(cuid())
+  fiscalYearId String
+  fiscalYear   FiscalYear @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  name         TeamName
+  displayName  String
+  description  String?    @db.Text
+  najiraTheme  String?    @db.Text
+
+  memberships TeamMembership[]
+  events      Event[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([fiscalYearId, name])
+}
+
+model TeamMembership {
+  id       String  @id @default(cuid())
+  teamId   String
+  team     Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  isLeader Boolean @default(false)
+
+  @@unique([teamId, memberId])
+}
+
+// 組織図の役職 (支部長・副支部長・幹事長・委員会・部会 etc.)
+model OrgPosition {
+  id           String     @id @default(cuid())
+  fiscalYearId String
+  fiscalYear   FiscalYear @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  title        String // 支部長, 副支部長, 幹事長, 幹事, 増強担当 ...
+  category     String // 役員 / 委員会 / 部会 / フォーラム / 増強 / 青年部
+  memberId     String
+  member       Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  sortOrder    Int        @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// 行事 (例会 / なじら会 / チームMTG 等)
+// ---------------------------------------------------------------------------
+
+enum EventType {
+  REGULAR_MEETING // 例会
+  NAJIRA // なじら会
+  TEAM_MEETING // チームミーティング
+  FORUM // フォーラム
+  GENERAL_MEETING // 総会
+  OTHER
+}
+
+enum EventStatus {
+  SCHEDULED
+  ANNOUNCING
+  COMPLETED
+  CANCELLED
+}
+
+model Event {
+  id                 String      @id @default(cuid())
+  year               Int
+  month              Int
+  title              String
+  type               EventType
+  teamId             String?
+  team               Team?       @relation(fields: [teamId], references: [id])
+  chairMemberId      String?
+  chairMember        Member?     @relation("EventChair", fields: [chairMemberId], references: [id])
+  roomLeaderMemberId String?
+  roomLeaderMember   Member?     @relation("EventRoomLeader", fields: [roomLeaderMemberId], references: [id])
+  speakerName        String?
+  startAt            DateTime
+  endAt              DateTime
+  venue              String?
+  socialVenue        String?
+  purpose            String?     @db.Text
+  theme              String?
+  description        String?     @db.Text
+  discussionTheme    String?     @db.Text
+  targetAudience     String?
+  guestStrategy      String?     @db.Text
+  edoyuUrl           String?
+  driveFolderUrl     String?
+  calendarEventId    String?
+  status             EventStatus @default(SCHEDULED)
+  notes              String?     @db.Text
+
+  plans       Plan[]
+  files       FileAsset[]
+  tasks       Task[]
+  linePosts   LinePost[]
+  agendaItems NajiraAgendaItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year, month])
+}
+
+// なじら会固有の追加情報 (Event.type == NAJIRA のものに1:1で紐づく)
+model NajiraDetail {
+  id              String  @id @default(cuid())
+  eventId         String  @unique
+  decisions       String? @db.Text // 決定事項
+  continuedTopics String? @db.Text // 継続協議事項
+  homeworkForNext String? @db.Text // 次回までの宿題
+  guestFollowUp   String? @db.Text // ゲストフォロー表メモ
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NajiraAgendaItem {
+  id        String  @id @default(cuid())
+  eventId   String
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title     String
+  detail    String? @db.Text
+  sortOrder Int     @default(0)
+  isDone    Boolean @default(false)
+}
+
+// ---------------------------------------------------------------------------
+// 例会計画書
+// ---------------------------------------------------------------------------
+
+enum PlanStatus {
+  DRAFT // 下書き
+  TEAM_MEETING_DONE // チームMTG済み
+  WAITING_FOR_NAJIRA // なじら会上程待ち
+  UNDER_DISCUSSION // なじら会協議中
+  REVISION_REQUIRED // 修正依頼中
+  APPROVED // 承認済み
+  EDOYU_REGISTERED // e-doyu登録済み
+  ANNOUNCING // 告知中
+  COMPLETED // 本番実施済み
+  REVIEW_DONE // 振り返り完了
+}
+
+model Plan {
+  id            String     @id @default(cuid())
+  eventId       String
+  event         Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title         String
+  status        PlanStatus @default(DRAFT)
+  version       Int        @default(1)
+  isLatest      Boolean    @default(true)
+  fileUrl       String?
+  driveFileId   String?
+  comments      String?    @db.Text
+  approvalNotes String?    @db.Text
+  submittedAt   DateTime?
+  approvedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+}
+
+// ---------------------------------------------------------------------------
+// 資料 (Google Drive連携)
+// ---------------------------------------------------------------------------
+
+enum FileType {
+  NAJIRA_MATERIAL // なじら会資料
+  PLAN // 例会企画書
+  FLYER // チラシ
+  MINUTES // 議事録
+  PHOTO // 写真
+  GENERAL_MEETING // 総会資料
+  ORGANIZATION // 組織図
+  GUEST_LIST // ゲスト管理表
+  OTHER
+}
+
+model FileAsset {
+  id             String   @id @default(cuid())
+  title          String
+  type           FileType
+  relatedEventId String?
+  relatedEvent   Event?   @relation(fields: [relatedEventId], references: [id])
+  driveFileId    String?
+  driveUrl       String
+  isLatest       Boolean  @default(true)
+  uploadedById   String?
+  uploadedBy     Member?  @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
+
+// ---------------------------------------------------------------------------
+// タスク
+// ---------------------------------------------------------------------------
+
+enum TaskStatus {
+  TODO
+  DOING
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Task {
+  id                 String       @id @default(cuid())
+  title              String
+  description        String?      @db.Text
+  relatedEventId     String?
+  relatedEvent       Event?       @relation(fields: [relatedEventId], references: [id])
+  relatedCandidateId String?
+  relatedCandidate   Candidate?   @relation(fields: [relatedCandidateId], references: [id])
+  assignedToId       String?
+  assignedTo         Member?      @relation(fields: [assignedToId], references: [id])
+  dueDate            DateTime?
+  status             TaskStatus   @default(TODO)
+  priority           TaskPriority @default(MEDIUM)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, dueDate])
+}
+
+// ---------------------------------------------------------------------------
+// 入会候補者フォロー
+// ---------------------------------------------------------------------------
+
+enum CandidateStatus {
+  NOT_CONTACTED
+  CONTACTED
+  INVITED
+  WILL_ATTEND
+  ATTENDED
+  THANKS_SENT
+  ORIENTATION_DONE
+  CONSIDERING
+  WAITING_APPLICATION
+  JOINED
+  HOLD
+  DECLINED
+}
+
+model Candidate {
+  id               String          @id @default(cuid())
+  name             String
+  companyName      String?
+  position         String?
+  email            String?
+  phone            String?
+  introducedById   String?
+  introducedBy     Member?         @relation("CandidateIntroducedBy", fields: [introducedById], references: [id])
+  assignedToId     String?
+  assignedTo       Member?         @relation("CandidateAssignedTo", fields: [assignedToId], references: [id])
+  firstContactDate DateTime?
+  lastContactDate  DateTime?
+  nextActionDate   DateTime?
+  status           CandidateStatus @default(NOT_CONTACTED)
+  interests        String?         @db.Text
+  notes            String?         @db.Text
+
+  emailLogs EmailLog[]
+  tasks     Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+enum EmailStatus {
+  DRAFT
+  SENT
+  FAILED
+}
+
+model EmailLog {
+  id             String      @id @default(cuid())
+  candidateId    String
+  candidate      Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  subject        String
+  body           String      @db.Text
+  sentAt         DateTime?
+  status         EmailStatus @default(DRAFT)
+  gmailMessageId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// LINE投稿文
+// ---------------------------------------------------------------------------
+
+enum LinePostStatus {
+  DRAFT
+  SCHEDULED
+  POSTED
+}
+
+model LinePost {
+  id             String         @id @default(cuid())
+  relatedEventId String?
+  relatedEvent   Event?         @relation(fields: [relatedEventId], references: [id])
+  title          String
+  body           String         @db.Text
+  scheduledDate  DateTime?
+  postedAt       DateTime?
+  postedById     String?
+  postedBy       Member?        @relation(fields: [postedById], references: [id])
+  status         LinePostStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
