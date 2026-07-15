@@ -7,8 +7,28 @@ type ClaimResult =
   | { ok: true }
   | { ok: false; reason: "not_logged_in" | "invalid_input" | "not_found" | "ambiguous" };
 
+const CORPORATE_DESIGNATORS = [
+  "株式会社",
+  "（株）",
+  "(株)",
+  "㈱",
+  "有限会社",
+  "（有）",
+  "(有)",
+  "㈲",
+  "合同会社",
+  "（同）",
+  "(同)",
+  "合名会社",
+  "合資会社",
+];
+
 function normalize(value: string) {
-  return value.replace(/[\s　]+/g, "").trim();
+  let v = value.replace(/[\s　]+/g, "").trim();
+  for (const designator of CORPORATE_DESIGNATORS) {
+    v = v.split(designator).join("");
+  }
+  return v;
 }
 
 export async function claimMemberAccount(name: string, companyName: string): Promise<ClaimResult> {
