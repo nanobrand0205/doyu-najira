@@ -50,7 +50,8 @@ export async function GET(request: Request) {
       update: tokenData,
       create: { branchId, ...tokenData },
     });
-  } catch {
+  } catch (err) {
+    console.error("Google token exchange failed:", err);
     await prisma.googleIntegration
       .upsert({
         where: { branchId },
@@ -58,9 +59,12 @@ export async function GET(request: Request) {
         create: { branchId, status: "ERROR" },
       })
       .catch(() => {});
-    return NextResponse.redirect(
-      new URL("/settings?googleError=token_exchange_failed", request.url)
-    );
+    const detail =
+      err instanceof Error ? err.message : typeof err === "string" ? err : "unknown_error";
+    const errorUrl = new URL("/settings", request.url);
+    errorUrl.searchParams.set("googleError", "token_exchange_failed");
+    errorUrl.searchParams.set("detail", detail.slice(0, 200));
+    return NextResponse.redirect(errorUrl);
   }
 
   const res = NextResponse.redirect(new URL("/settings?googleConnected=1", request.url));

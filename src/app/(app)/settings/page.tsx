@@ -10,11 +10,16 @@ import { UserRoleTable } from "@/components/settings/user-role-table";
 import { FiscalYearManager } from "@/components/settings/fiscal-year-manager";
 import { MemberRegistry } from "@/components/settings/member-registry";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ googleError?: string; detail?: string; googleConnected?: string }>;
+}) {
   const { session, branchId } = await requireBranchSession();
   if (!canEditOperations(session.user.role)) {
     redirect("/");
   }
+  const params = await searchParams;
 
   const isManager = canManageSensitive(session.user.role);
   const [googleIntegration, branchSettings, years, users, members] = await Promise.all([
@@ -45,6 +50,18 @@ export default async function SettingsPage() {
   return (
     <div>
       <PageHeader title="設定" description="Google連携、年度、権限を管理します。" />
+
+      {params.googleError && (
+        <div className="mb-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-4 py-3 text-[13px] text-[var(--danger)]">
+          <p className="font-medium">Google連携に失敗しました({params.googleError})</p>
+          {params.detail && <p className="mt-1 break-all opacity-80">詳細: {params.detail}</p>}
+        </div>
+      )}
+      {params.googleConnected && (
+        <div className="mb-4 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/10 px-4 py-3 text-[13px] text-[var(--success)]">
+          Googleとの連携が完了しました。
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <GoogleConnectionCard
