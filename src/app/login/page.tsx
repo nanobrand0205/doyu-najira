@@ -4,6 +4,7 @@ import { demoSignIn, googleSignIn } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { InAppBrowserWarning } from "./in-app-browser-warning";
 
 const isDemoMode = process.env.DEMO_MODE === "true";
 
@@ -29,6 +30,8 @@ export default async function LoginPage() {
       />
 
       <div className="relative z-10 w-full max-w-sm">
+        <InAppBrowserWarning />
+
         <div className="mb-10 flex flex-col items-center gap-3 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)] text-xl font-bold text-[var(--primary-foreground)] shadow-lg">
             D
