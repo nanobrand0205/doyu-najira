@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 
 const isDemoMode = process.env.DEMO_MODE === "true";
 
+// Demo account list must reflect current DB state, not a build-time snapshot.
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage() {
   const demoUsers = isDemoMode
     ? await prisma.user.findMany({
