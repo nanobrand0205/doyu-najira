@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/permissions";
 import { getBranchSettings } from "@/lib/branch-settings";
 import { BranchSettingsProvider } from "@/components/providers/branch-settings-provider";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -15,10 +16,12 @@ export default async function AppLayout({
   if (!session?.user) {
     redirect("/login");
   }
-  // SUPER_ADMIN has no branchId and operates from /admin instead of a
-  // branch-scoped workspace.
   if (!session.user.branchId) {
-    redirect("/admin");
+    // SUPER_ADMIN has no branchId and operates from /admin instead of a
+    // branch-scoped workspace. Anyone else without a branchId is a
+    // first-time login whose Google account hasn't been matched to a
+    // member record yet.
+    redirect(isSuperAdmin(session.user.role) ? "/admin" : "/onboarding");
   }
 
   const labels = await getBranchSettings(session.user.branchId);

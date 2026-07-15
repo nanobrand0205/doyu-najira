@@ -57,3 +57,26 @@ export async function testDriveConnection() {
   const result = await ensureFolderStructure(branchId, new Date().getFullYear());
   return result;
 }
+
+export async function createMember(formData: FormData) {
+  const { branchId } = await assertCanManage();
+  const name = String(formData.get("name") ?? "").trim();
+  const companyName = String(formData.get("companyName") ?? "").trim();
+  const companyPosition = String(formData.get("companyPosition") ?? "").trim();
+  const joinedYearRaw = String(formData.get("joinedYear") ?? "").trim();
+  const introducedBy = String(formData.get("introducedBy") ?? "").trim();
+  if (!name || !companyName) {
+    throw new Error("氏名と会社名を入力してください。");
+  }
+  await prisma.member.create({
+    data: {
+      branchId,
+      name,
+      companyName,
+      companyPosition: companyPosition || null,
+      joinedYear: joinedYearRaw ? Number(joinedYearRaw) : null,
+      introducedBy: introducedBy || null,
+    },
+  });
+  revalidatePath("/settings");
+}

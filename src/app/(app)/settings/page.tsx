@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { GoogleConnectionCard } from "@/components/settings/google-connection-card";
 import { UserRoleTable } from "@/components/settings/user-role-table";
 import { FiscalYearManager } from "@/components/settings/fiscal-year-manager";
+import { MemberRegistry } from "@/components/settings/member-registry";
 
 export default async function SettingsPage() {
   const { session, branchId } = await requireBranchSession();
@@ -16,7 +17,7 @@ export default async function SettingsPage() {
   }
 
   const isManager = canManageSensitive(session.user.role);
-  const [googleIntegration, branchSettings, years, users] = await Promise.all([
+  const [googleIntegration, branchSettings, years, users, members] = await Promise.all([
     prisma.googleIntegration.findUnique({ where: { branchId } }),
     prisma.branchSettings.findUnique({ where: { branchId } }),
     isManager
@@ -24,6 +25,19 @@ export default async function SettingsPage() {
       : Promise.resolve([]),
     isManager
       ? prisma.user.findMany({ where: { branchId }, orderBy: { createdAt: "asc" } })
+      : Promise.resolve([]),
+    isManager
+      ? prisma.member.findMany({
+          where: { branchId },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            companyPosition: true,
+            user: { select: { id: true } },
+          },
+        })
       : Promise.resolve([]),
   ]);
   const branchName = branchSettings?.branchName ?? "支部";
@@ -57,6 +71,7 @@ export default async function SettingsPage() {
 
         {isManager && <FiscalYearManager years={years} />}
         {isManager && <UserRoleTable users={users} />}
+        {isManager && <MemberRegistry members={members} />}
       </div>
     </div>
   );
