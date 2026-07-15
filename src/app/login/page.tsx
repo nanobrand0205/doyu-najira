@@ -49,7 +49,7 @@ export default async function LoginPage() {
             </Button>
           </form>
           <p className="mt-3 text-center text-[12px] text-[var(--muted-foreground)]">
-            所属する支部の同友会Googleアカウントでログインしてください
+            ご自身の個人のGoogleアカウントでログインしてください
           </p>
         </div>
 
